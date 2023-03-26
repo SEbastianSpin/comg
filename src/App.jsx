@@ -4,6 +4,8 @@ import react from "./assets/react.svg";
 import modified from './assets/plant/modified.png';
 import Slider from '@mui/material/Button';
 import Grid from "./assets/Grid";
+import Button from '@mui/material/Button';
+import Dithering from "./assets/Dithering";
 
 function App() {
 
@@ -40,6 +42,13 @@ function App() {
   function contrast() {
 
     invoke("contrast", { filename: userImageName, val: value }).then((message) => {
+      console.log(message);
+      window.location.reload(false)
+    });
+  }
+  function median(){
+
+    invoke("median", { filename: userImageName, val: value }).then((message) => {
       console.log(message);
       window.location.reload(false)
     });
@@ -98,9 +107,9 @@ function edgeH() {
   return (
     <div className="container">
       <nav className="Menu">
-        <button onClick={Invert}>
+        <Button onClick={Invert}>
           Invert
-        </button>
+        </Button>
 
         <div className="roller">
           <input
@@ -116,47 +125,47 @@ function edgeH() {
           <label for="bright">Brightness </label>
 
         </div>
-        <button onClick={brightness}>
-          Apply posivive Brightness
-        </button>
-        <button onClick={gamma}>
+        <Button onClick={brightness}>
+           Brightness correction
+        </Button>
+        <Button onClick={gamma}>
           gamma correction
-        </button>
+        </Button>
 
-        <button onClick={contrast}>
+        <Button onClick={contrast}>
           contrast
-        </button>
-        <button onClick={blur}>
+        </Button>
+        {/* <Button onClick={blur}>
           Blur
-        </button>
+        </Button> */}
 
-        <button onClick={blu2}>
+        {/* <Button onClick={blu2}>
           Gaussian blur
-        </button>
+        </Button> */}
 
-        <button onClick={sharp}>
+        <Button onClick={median}>
+        Median
+        </Button>
+
+        <Dithering filename={userImageName}></Dithering>
+
+{/* 
+       <Button onClick={sharp}>
         Sharpen
-        </button>
-
-        <button onClick={edgeH}>
+        </Button>
+ 
+        <Button onClick={edgeH}>
         edge detection X
-        </button>
+        </Button>
 
-        <button onClick={contrast}>
-        edge detection Y
-        </button>
+        
 
-        <button onClick={contrast}>
-        edge detection BOTH
-        </button>
+       
 
-        <button onClick={eemboss}>
+        <Button onClick={eemboss}>
         emboss detection X
-        </button>
+        </Button> */}
 
-        <button onClick={contrast}>
-        emboss detection Y
-        </button>
 
         
        <Grid filename={userImageName} ></Grid>
@@ -167,7 +176,6 @@ function edgeH() {
 
         <div className="fileUpload">
           <input id="upload" type="file" accept="image/*" onChange={onFileChange}/>
-          <button onClick={Invert}>Edit</button>
         </div>
         <div className="bench">
           <img src={userImage} className="ImagePreview">

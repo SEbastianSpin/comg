@@ -7,11 +7,12 @@ use image::{
 };
 use std::thread;
 
+use rand::Rng;
 use serde_json;
 use std::fs::File;
 use std::io::Write;
 
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
+// Learn more about Tauri commands at htrps://tauri.app/v1/guides/features/command
 // #[tauri::command]
 // fn import() {
 //     println!("dimensions {:?}", pic.dimensions());
@@ -38,7 +39,7 @@ fn send_array_to_rust(filename: String, grid: Vec<Vec<i32>>) -> bool {
 }
 
 #[tauri::command]
-fn apply_in_rust(filename: String, grid: Vec<Vec<i32>>, div:u8) -> bool{
+fn apply_in_rust(filename: String, grid: Vec<Vec<i32>>, div: u8, o: i32) -> bool {
     println!("{:?}", grid);
 
     let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
@@ -46,11 +47,20 @@ fn apply_in_rust(filename: String, grid: Vec<Vec<i32>>, div:u8) -> bool{
     let mut rgba = open(original).unwrap().into_rgba8();
     let mut rgba2 = open(original2).unwrap().into_rgba8();
     let (width, height) = rgba.dimensions();
-    let coloff =((-0.5 )* (grid.len() as f32)+0.5) as i32  ;
-    let rowoff =((-0.5 )* (grid[0].len() as f32)+0.5 )as i32 ;
-   
-    println!("file name {} size {} {} divisor {} filter size {} x {} ", filename, width, height,div,grid.len(),grid[0].len());
-    println!("offset c {} offset r {}",coloff,rowoff);
+    let coloff = ((-0.5) * (grid.len() as f32) + 0.5) as i32;
+    let rowoff = ((-0.5) * (grid[0].len() as f32) + 0.5) as i32;
+
+    println!(
+        "file name {} size {} {} divisor {} filter size {} x {} offset {}",
+        filename,
+        width,
+        height,
+        div,
+        grid.len(),
+        grid[0].len(),
+        o
+    );
+    println!("offset c {} offset r {}", coloff, rowoff);
     for x in 0..width {
         for y in 0..height {
             let p = *rgba2.get_pixel(x, y);
@@ -59,33 +69,35 @@ fn apply_in_rust(filename: String, grid: Vec<Vec<i32>>, div:u8) -> bool{
             let mut red: i32 = 0;
             let mut green: i32 = 0;
             let mut blue: i32 = 0;
-            let mut divisor:i32=0;
-         
-            for xoff in coloff..-coloff+1 {
-                for yoff in rowoff..-rowoff+1 {
+            let mut divisor: i32 = 0;
+
+            for xoff in coloff..-coloff + 1 {
+                for yoff in rowoff..-rowoff + 1 {
                     let xin = x as i32 + xoff;
                     let yin = y as i32 + yoff;
-                     let xgrid:usize = (xoff -coloff )as usize;
-                     let ygrid:usize = (yoff -rowoff )as usize;
+                    let xgrid: usize = (xoff - coloff) as usize;
+                    let ygrid: usize = (yoff - rowoff) as usize;
 
                     if xin < 0 || xin >= width as i32 || yin < 0 || yin >= height as i32 {
                         continue;
                     } else {
                         let pp = *rgba2.get_pixel(xin as u32, yin as u32);
                         let rgba_val2 = pp.channels();
-                            divisor+=grid[xgrid][ygrid];
-                            red += (rgba_val2[0] as i32) *grid[xgrid][ygrid];
-                            green += (rgba_val2[1] as i32) *grid[xgrid][ygrid];
-                            blue += (rgba_val2[2] as i32) *grid[xgrid][ygrid];
+                        divisor += grid[xgrid][ygrid];
+                        red += (rgba_val2[0] as i32) * grid[xgrid][ygrid];
+                        green += (rgba_val2[1] as i32) * grid[xgrid][ygrid];
+                        blue += (rgba_val2[2] as i32) * grid[xgrid][ygrid];
                     }
                 }
             }
-            if divisor==0 {divisor=1;}
-                let mut nred: u8 = (red / divisor) as u8;
-                let mut ngreen: u8 = (green / divisor) as u8;
-                let mut nblue: u8 = (blue / divisor) as u8;
-                let np = image::Rgba([nred, ngreen, nblue, rgba_val[3]]);
-                rgba.put_pixel(x, y, np);
+            if divisor == 0 {
+                divisor = 1;
+            }
+            let mut nred: u8 = (o + (red / divisor)) as u8;
+            let mut ngreen: u8 = (o + (green / divisor)) as u8;
+            let mut nblue: u8 = (o + (blue / divisor)) as u8;
+            let np = image::Rgba([nred, ngreen, nblue, rgba_val[3]]);
+            rgba.put_pixel(x, y, np);
         }
     }
 
@@ -289,7 +301,6 @@ fn gamma(filename: String, val: u8) -> bool {
     }
     let modified =
         "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
-
     let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
     rgba.save(modified2).unwrap();
     rgba.save(modified).unwrap();
@@ -451,51 +462,74 @@ fn sharp(filename: String, val: u8) -> bool {
     let mut rgba = open(original).unwrap().into_rgba8();
     let mut rgba2 = open(original2).unwrap().into_rgba8();
     let (width, height) = rgba.dimensions();
-    println!("{} {}", width, height);
-    for x in 2..width - 1 {
-        for y in 2..height - 1 {
-            let p = *rgba.get_pixel(x, y);
+    println!("IMG SIZE: {} {}", width, height);
+
+    for x in 0..width {
+        for y in 0..height {
+            let p = *rgba2.get_pixel(x, y);
             let rgba_val = p.channels();
 
             let mut red: i32 = 0;
             let mut green: i32 = 0;
             let mut blue: i32 = 0;
+            for xoff in -1..2 {
+                for yoff in -1..2 {
+                    let xin = x as i32 + xoff;
+                    let yin = y as i32 + yoff;
 
-            for xin in x - 1..x + 2 {
-                for yin in y - 1..y + 2 {
-                    let mut pp = *rgba2.get_pixel(xin, yin);
-                    let rgba_val2 = pp.channels();
-                    if xin == x && yin == y {
-                        red += ((rgba_val2[0] as i32) * 5);
-                        green += ((rgba_val2[1] as i32) * 5);
-                        blue += ((rgba_val2[2] as i32) * 5);
-                    } else if xin == x || yin == y && !(xin == x && yin == y) {
-                        red += (rgba_val2[0] as i32) * -1;
-                        green += (rgba_val2[1] as i32) * -1;
-                        blue += (rgba_val2[2] as i32) * -1;
+                    if xin < 0 || xin >= width as i32 || yin < 0 || yin >= height as i32 {
+                        continue;
                     } else {
-                    }
+                        let pp = *rgba2.get_pixel(xin as u32, yin as u32);
+                        let rgba_val2 = pp.channels();
 
-                    //     red+=((rgba_val2[0]as i32)/9) as u8;
-                    //   //  println!("inside {}", red);
-                    //     green+=((rgba_val2[1]as i32)/9) as u8;
-                    //     blue+=((rgba_val2[2]as i32)/9) as u8;
+                        if xin == x as i32 && yin == y as i32 {
+                            red += ((rgba_val2[0] as i32) * 9);
+                            green += ((rgba_val2[1] as i32) * 9);
+                            blue += ((rgba_val2[2] as i32) * 9);
+                        } else if xin == x as i32
+                            || yin == y as i32 && !(xin == x as i32 && yin == y as i32)
+                        {
+                            red += (rgba_val2[0] as i32) * -1;
+                            green += (rgba_val2[1] as i32) * -1;
+                            blue += (rgba_val2[2] as i32) * -1;
+                        } else {
+                            red += (rgba_val2[0] as i32) * -1;
+                            green += (rgba_val2[1] as i32) * -1;
+                            blue += (rgba_val2[2] as i32) * -1;
+                        }
+                    }
                 }
             }
-            // println!("{} {} {} ",red,green,blue);
-            let mut nred: u8 = (red) as u8;
-            let mut ngreen: u8 = (green) as u8;
-            let mut nblue: u8 = (blue) as u8;
-            // println!("{} {} {} ",nred,ngreen,nblue);
 
-            let np = image::Rgba([nred, ngreen, nblue, rgba_val[3]]);
-
-            rgba.put_pixel(x, y, np);
+            if (x == 0 && y == 0)
+                || x == width - 1 && y == height - 1
+                || x == width - 1 && y == 0
+                || x == 0 && y == height - 1
+            {
+                let mut nred: u8 = (red / 6) as u8;
+                let mut ngreen: u8 = (green / 6) as u8;
+                let mut nblue: u8 = (blue / 6) as u8;
+                let np = image::Rgba([nred, ngreen, nblue, rgba_val[3]]);
+                rgba.put_pixel(x, y, np);
+            } else if x == 0 || y == 0 || x == width - 1 || y == height - 1 {
+                let mut nred: u8 = (red / 3) as u8;
+                let mut ngreen: u8 = (green / 3) as u8;
+                let mut nblue: u8 = (blue / 3) as u8;
+                let np = image::Rgba([nred, ngreen, nblue, rgba_val[3]]);
+                rgba.put_pixel(x, y, np);
+            } else {
+                let mut nred: u8 = (red) as u8;
+                let mut ngreen: u8 = (green) as u8;
+                let mut nblue: u8 = (blue) as u8;
+                let np = image::Rgba([nred, ngreen, nblue, rgba_val[3]]);
+                rgba.put_pixel(x, y, np);
+            }
         }
     }
+
     let modified =
         "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
-
     let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
     rgba.save(modified2).unwrap();
     rgba.save(modified).unwrap();
@@ -534,7 +568,72 @@ fn edge_horizontal(filename: String, val: u8) -> bool {
     }
     let modified =
         "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
+    let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
+    rgba.save(modified2).unwrap();
+    rgba.save(modified).unwrap();
+    println!("DONE");
+    true.into()
+}
 
+#[tauri::command]
+fn median(filename: String, val: u8) -> bool {
+    use image::Pixel;
+    let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let original2 = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let mut rgba = open(original).unwrap().into_rgba8();
+    let mut rgba2 = open(original2).unwrap().into_rgba8();
+    let (width, height) = rgba.dimensions();
+    println!("IMG SIZE: {} {}", width, height);
+
+    for x in 0..width {
+        for y in 0..height {
+            let p = *rgba2.get_pixel(x, y);
+            let rgba_val = p.channels();
+
+            let mut red: u32 = 0;
+            let mut green: u32 = 0;
+            let mut blue: u32 = 0;
+
+            let mut redvec = Vec::new();
+            let mut greenvec = Vec::new();
+            let mut bluevec = Vec::new();
+
+            for xoff in -1..2 {
+                for yoff in -1..2 {
+                    let xin = x as i32 + xoff;
+                    let yin = y as i32 + yoff;
+
+                    if xin < 0 || xin >= width as i32 || yin < 0 || yin >= height as i32 {
+                        continue;
+                    } else {
+                        let pp = *rgba2.get_pixel(xin as u32, yin as u32);
+                        let rgba_val2 = pp.channels();
+                        redvec.push(rgba_val2[0]);
+                        greenvec.push(rgba_val2[1]);
+                        bluevec.push(rgba_val2[2]);
+                    }
+                }
+            }
+
+            redvec.sort();
+            let midr = redvec.len() / 2;
+
+            bluevec.sort();
+            let midb = bluevec.len() / 2;
+
+            greenvec.sort();
+            let midg = bluevec.len() / 2;
+
+            let mut nred: u8 = (red / 16) as u8;
+            let mut ngreen: u8 = (green / 16) as u8;
+            let mut nblue: u8 = (blue / 16) as u8;
+            let np = image::Rgba([redvec[midr], bluevec[midb], greenvec[midg], rgba_val[3]]);
+            rgba.put_pixel(x, y, np);
+        }
+    }
+
+    let modified =
+        "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
     let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
     rgba.save(modified2).unwrap();
     rgba.save(modified).unwrap();
@@ -580,7 +679,7 @@ fn eemboss(filename: String, val: u8) -> bool {
                     }
                 }
             }
-            //  println!("{} {} {} ",red,green,blue);
+            //println!("{} {} {} ",red,green,blue);
             let mut nred: u8 = (red) as u8;
             let mut ngreen: u8 = (green) as u8;
             let mut nblue: u8 = (blue) as u8;
@@ -593,7 +692,6 @@ fn eemboss(filename: String, val: u8) -> bool {
     }
     let modified =
         "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
-
     let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
     rgba.save(modified2).unwrap();
     rgba.save(modified).unwrap();
@@ -601,75 +699,197 @@ fn eemboss(filename: String, val: u8) -> bool {
     true.into()
 }
 
-// #[tauri::command]
-// fn  contrast(filename: String, val: u8) -> bool {
-//     use image::Pixel;
-//     let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
-//     let mut rgba = open(original).unwrap().into_rgba8();
-//     let (width, height) = rgba.dimensions();
-//     println!("{} {}", width, height);
-//     for x in 0..width {
-//         for y in 0..height {
-//             let mut p = *rgba.get_pixel(x, y);
-//             let rgba_val = p.channels();
-//             let mut bri0: u8 = rgba_val[0];
-//             let mut bri1: u8 = rgba_val[1];
-//             let mut bri2: u8 = rgba_val[2];
+#[tauri::command]
+fn thresholding(filename: String, k: u8) -> bool {
+    use image::Pixel;
+    let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let original2 = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let mut rgba = open(original).unwrap().into_rgba8();
+    let mut rgba2 = open(original2).unwrap().into_rgba8();
+    let (width, height) = rgba.dimensions();
+    println!("{} {}", width, height);
 
-//             if (rgba_val[0] < 127) {
-//                 bri0 = (bri0 as f32 * 1.19) as u8;
-//             }
-//             if (rgba_val[1] < 127) {
-//                 bri1 = (bri1 as f32 * 1.19) as u8;
-//             }
+    let mut levels = Vec::new();
+    // let mut bars =Vec::new();
+    let mut rng = rand::thread_rng();
+    let co = (255 / (k - 1));
+    for l in 0..k {
+        levels.push(l * co);
+    }
 
-//             if (rgba_val[2] < 127) {
-//                 bri2 = (bri2 as f32 * 1.19) as u8;
-//             }
-//             if (rgba_val[0] > 127) {
-//                 bri0 = (bri0 as f32 * 0.84) as u8;
-//             }
-//             if (rgba_val[1] > 127) {
-//                 bri1 = (bri1 as f32 * 0.84) as u8;
-//             }
+    println!("levels of color {:?}  ddd {:?}  k : {}", levels, co, k);
+    for x in 0..width {
+        for y in 0..height {
+            let p = *rgba.get_pixel(x, y);
+            let mut rgba_val = p.channels();
+            let mut colors = [rgba_val[0], rgba_val[1], rgba_val[2], rgba_val[3]];
 
-//             if (rgba_val[2] > 127) {
-//                 bri2 = (bri2 as f32 * 0.84) as u8;
-//             }
+            let randomtreshold = rng.gen_range(0..10);
+            for i in 0..3 {
+                let tt = ((rgba_val[i] as u16) * (k as u16 - 2u16)) / 255u16;
+                let tr = tt as u8;
+                if randomtreshold > 4 {
+                    colors[i] = levels[(tr + 1) as usize]
+                } else {
+                    colors[i] = levels[(tr) as usize]
+                }
+            }
 
-//             if (rgba_val[0] < 40) {
-//                 bri0 = 0;
-//             }
-//             if (rgba_val[1] < 40) {
-//                 bri1 = 0;
-//             }
-//             if (rgba_val[2] < 40) {
-//                 bri2 = 0;
-//             }
+            // if x < 10 && y <10 {
+            //     println!("{:?} {:?} {:?} \n {} {} {}" ,red,green, blue ,rgba_val[0] ,rgba_val[1] ,rgba_val[2] );
+            // }
 
-//             if rgba_val[0] > 215 {
-//                 bri0 = 215;
-//             }
-//             if rgba_val[1] > 215 {
-//                 bri1 = 215;
-//             }
-//             if rgba_val[2] > 215 {
-//                 bri2 = 215;
-//             }
+            let np = image::Rgba(colors);
 
-//             let np = image::Rgba([bri0, bri1, bri2, rgba_val[3]]);
+            rgba.put_pixel(x, y, np);
+        }
+    }
+    let modified =
+        "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
+    let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
+    rgba.save(modified2).unwrap();
+    rgba.save(modified).unwrap();
+    println!("DONE");
+    true.into()
+}
 
-//             // println!("{:?}", p.channels());
-//             rgba.put_pixel(x, y, np);
-//         }
-//     }
-//     let modified =
-//         "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
-//     let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
-//     rgba.save(modified2).unwrap();
-//     rgba.save(modified).unwrap();
-//     true.into()
-// }
+struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+#[tauri::command]
+fn median_cut(filename: String, k: u8) -> bool {
+    use image::Pixel;
+    let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let original2 = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let mut rgba = open(original).unwrap().into_rgba8();
+    let (width, height) = rgba.dimensions();
+    println!("{} {}", width, height);
+
+    let mut allpixels = Vec::with_capacity((width * height) as usize);
+    println!(" k : {}", k);
+    let (mut min_r, mut min_g, mut min_b) = (255, 255, 255);
+    let (mut max_r, mut max_g, mut max_b) = (0, 0, 0);
+
+    for x in 0..width {
+        for y in 0..height {
+            let p = *rgba.get_pixel(x, y);
+            allpixels.push([p[0], p[1], p[2]]);
+
+            min_r = min_r.min(p[0]);
+            min_g = min_g.min(p[1]);
+            min_b = min_b.min(p[2]);
+            max_r = max_r.max(p[0]);
+            max_g = max_g.max(p[1]);
+            max_b = max_b.max(p[2]);
+        }
+    }
+
+    println!("Minimum RGB values: ({}, {}, {})", min_r, min_g, min_b);
+    println!("Maximum RGB values: ({}, {}, {})", max_r, max_g, max_b);
+    for i in 0..10 {
+        print!("{:?} ", allpixels[i][1]);
+    }
+
+    let mut cubes = vec![allpixels.to_vec()];
+
+    // for i in 0..10{
+    //     print!("{:?} " ,cubes[i]);
+    // }
+    let mut i = 1;
+    //for c in 0..cubes.len() {
+    let mut c = 0;
+    while cubes.len() < (k - 1) as usize {
+        let mut cube = cubes[c].clone();
+        let median = cube.len() / 2;
+        cube.sort_by(|a, b| b[1].cmp(&a[1]));
+        let (mut left, right) = cube.split_at_mut(median);
+        let mut median_color = right[0].clone();
+        let mut lleft = left.to_vec();
+        lleft.push(median_color.clone());
+        right[0] = median_color;
+        cubes[c] = lleft.to_vec();
+        cubes.push(right.to_vec());
+        c += 1;
+    }
+
+    let palette: Vec<[u8; 3]> = cubes
+        .into_iter()
+        .map(|cube| {
+            let r = cube.iter().map(|c| c[0] as u32).sum::<u32>() / cube.len() as u32;
+            let g = cube.iter().map(|c| c[1] as u32).sum::<u32>() / cube.len() as u32;
+            let b = cube.iter().map(|c| c[2] as u32).sum::<u32>() / cube.len() as u32;
+            [r as u8, g as u8, b as u8]
+        })
+        .collect();
+
+    // for i in 0..10{
+    print!("{:?} ", palette);
+    // }
+
+    let mut new_img = ImageBuffer::new(width, height);
+
+    for x in 0..width {
+        for y in 0..height {
+            let p = *rgba.get_pixel(x, y);
+            let pixel = p.channels();
+
+            let closest_color = palette
+                .iter()
+                .min_by_key(|&c| {
+                    let r_diff = c[0] as i32 - pixel[0] as i32;
+                    let g_diff = c[1] as i32 - pixel[1] as i32;
+                    let b_diff = c[2] as i32 - pixel[2] as i32;
+                    r_diff * r_diff + g_diff * g_diff + b_diff * b_diff
+                })
+                .unwrap();
+
+            // Set the new pixel value to the closest color in the palette
+            let new_pixel = Rgb(*closest_color);
+            new_img.put_pixel(x, y, new_pixel);
+        }
+    }
+
+    let modified =
+        "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
+    let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
+    new_img.save(modified2).unwrap();
+    new_img.save(modified).unwrap();
+
+    println!("DONE");
+    true.into()
+}
+
+#[tauri::command]
+fn grey(filename: String, k: u8) -> bool {
+    use image::Pixel;
+    let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let original2 = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let mut rgba = open(original).unwrap().into_rgba8();
+    let (width, height) = rgba.dimensions();
+    println!("{} {}", width, height);
+
+    for x in 0..width {
+        for y in 0..height {
+            let p = *rgba.get_pixel(x, y);
+
+            let nb = p.to_luma();
+            let np = image::Rgba([nb[0], nb[0], nb[0], 255]);
+
+            rgba.put_pixel(x, y, np);
+        }
+    }
+
+    let modified =
+        "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
+    let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
+    rgba.save(modified2).unwrap();
+    rgba.save(modified).unwrap();
+    println!("DONE");
+    true.into()
+}
 
 fn main() {
     tauri::Builder::default()
@@ -683,8 +903,12 @@ fn main() {
             gblur2,
             sharp,
             edge_horizontal,
+            median,
             eemboss,
-            apply_in_rust
+            apply_in_rust,
+            thresholding,
+            median_cut,
+            grey
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -694,7 +918,7 @@ fn main() {
 // fn gblur2(filename: String, val: u8) -> bool {
 //     use image::Pixel;
 //     let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
-//     let original2 = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+//      let original2 = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
 //     let mut rgba = open(original).unwrap().into_rgba8();
 //     let mut rgba2 = open(original2).unwrap().into_rgba8();
 //     let (width, height) = rgba.dimensions();
@@ -738,7 +962,7 @@ fn main() {
 //         }
 //     }
 //     let modified =
-//         "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
+//         "C:\\Users\\Patryk\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
 
 //     let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
 //     rgba.save(modified2).unwrap();
@@ -769,9 +993,132 @@ fn main() {
 //         }
 //     }
 //     let modified =
-//         "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
+//         "C:\\Users\\Patryk\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
 //     let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
 //     rgba.save(modified2).unwrap();
 //     rgba.save(modified).unwrap();
 //     true.into()
 // }
+
+// #[tauri::command]
+// fn sharp(filename: String, val: u8) -> bool {
+//     use image::Pixel;
+//     let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+//      let original2 = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+//     let mut rgba = open(original).unwrap().into_rgba8();
+//     let mut rgba2 = open(original2).unwrap().into_rgba8();
+//     let (width, height) = rgba.dimensions();
+//     println!("{} {}", width, height);
+//     for x in 2..width - 1 {
+//         for y in 2..height - 1 {
+//             let p = *rgba.get_pixel(x, y);
+//             let rgba_val = p.channels();
+
+//             let mut red: i32 = 0;
+//             let mut green: i32 = 0;
+//             let mut blue: i32 = 0;
+
+//             for xin in x - 1..x + 2 {
+//                 for yin in y - 1..y + 2 {
+//                     let mut pp = *rgba2.get_pixel(xin, yin);
+//                     let rgba_val2 = pp.channels();
+//                     if xin == x && yin == y {
+//                         red += ((rgba_val2[0] as i32) * 5);
+//                         green += ((rgba_val2[1] as i32) * 5);
+//                         blue += ((rgba_val2[2] as i32) * 5);
+//                     } else if xin == x || yin == y && !(xin == x && yin == y) {
+//                         red += (rgba_val2[0] as i32) * -1;
+//                         green += (rgba_val2[1] as i32) * -1;
+//                         blue += (rgba_val2[2] as i32) * -1;
+//                     } else {
+//                     }
+
+//                     //     red+=((rgba_val2[0]as i32)/9) as u8;
+//                     //   //  println!("inside {}", red);
+//                     //     green+=((rgba_val2[1]as i32)/9) as u8;
+//                     //     blue+=((rgba_val2[2]as i32)/9) as u8;
+//                 }
+//             }
+//             // println!("{} {} {} ",red,green,blue);
+//             let mut nred: u8 = (red) as u8;
+//             let mut ngreen: u8 = (green) as u8;
+//             let mut nblue: u8 = (blue) as u8;
+//             // println!("{} {} {} ",nred,ngreen,nblue);
+
+//             let np = image::Rgba([nred, ngreen, nblue, rgba_val[3]]);
+
+//             rgba.put_pixel(x, y, np);
+//         }
+//     }
+//     let modified =
+//         "C:\\Users\\Patryk\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
+
+//     let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
+//     rgba.save(modified2).unwrap();
+//     rgba.save(modified).unwrap();
+//     println!("DONE");
+//     true.into()
+// }
+
+/*
+
+#[tauri::command]
+fn eemboss(filename: String, val: u8) -> bool {
+    use image::Pixel;
+    let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+     let original2 = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let mut rgba = open(original).unwrap().into_rgba8();
+    let mut rgba2 = open(original2).unwrap().into_rgba8();
+    let (width, height) = rgba.dimensions();
+    println!("{} {}", width, height);
+    for x in 2..width - 1 {
+        for y in 2..height - 1 {
+            let p = *rgba.get_pixel(x, y);
+            let rgba_val = p.channels();
+
+            let mut red: i32 = 0;
+            let mut green: i32 = 0;
+            let mut blue: i32 = 0;
+
+            for xin in x - 1..x + 2 {
+                for yin in y - 1..y + 2 {
+                    let mut pp = *rgba2.get_pixel(xin, yin);
+                    let rgba_val2 = pp.channels();
+                    if xin == x && yin == y {
+                        red += (rgba_val2[0] as i32);
+                        green += (rgba_val2[1] as i32);
+                        blue += (rgba_val2[2] as i32);
+                    } else if xin == x - 1 {
+                        red += (rgba_val2[0] as i32) * -1;
+                        green += (rgba_val2[1] as i32) * -1;
+                        blue += (rgba_val2[2] as i32) * -1;
+                    } else if xin == x + 1 {
+                        //
+                        red += (rgba_val2[0] as i32);
+                        green += (rgba_val2[1] as i32);
+                        blue += (rgba_val2[2] as i32);
+                    }
+                }
+            }
+            //  println!("{} {} {} ",red,green,blue);
+            let mut nred: u8 = (red) as u8;
+            let mut ngreen: u8 = (green) as u8;
+            let mut nblue: u8 = (blue) as u8;
+            //  println!("{} {} {} ",nred,ngreen,nblue);
+
+            let np = image::Rgba([nred, ngreen, nblue, rgba_val[3]]);
+
+            rgba.put_pixel(x, y, np);
+        }
+    }
+    let modified =
+        "C:\\Users\\Patryk\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
+
+    let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
+    rgba.save(modified2).unwrap();
+    rgba.save(modified).unwrap();
+    println!("DONE");
+    true.into()
+}
+
+*/
