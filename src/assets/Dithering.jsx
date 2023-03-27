@@ -27,6 +27,13 @@ export default function Dithering({ filename }){
   }
 
 
+  function applyycb(){
+    console.log("ycb")
+    invoke("ycb", { filename: filename , k:k}).then((message) => {
+      if (message) window.location.reload(false);
+    });
+  }
+
 
   return (<div>
    
@@ -46,5 +53,9 @@ export default function Dithering({ filename }){
     B&W
     </Button>
 
+
+    <Button onClick={applyycb}>
+    YCB Dithering
+    </Button>
    
   </div>);}

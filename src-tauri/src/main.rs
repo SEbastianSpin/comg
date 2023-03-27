@@ -712,23 +712,24 @@ fn thresholding(filename: String, k: u8) -> bool {
     let mut levels = Vec::new();
     // let mut bars =Vec::new();
     let mut rng = rand::thread_rng();
-    let co = (255 / (k - 1));
+    let co = (255 / (k - 1));  
     for l in 0..k {
-        levels.push(l * co);
+        levels.push(l *co );
     }
 
-    println!("levels of color {:?}  ddd {:?}  k : {}", levels, co, k);
+    println!("levels of color {:?}    k : {}", levels, k);
     for x in 0..width {
         for y in 0..height {
             let p = *rgba.get_pixel(x, y);
             let mut rgba_val = p.channels();
             let mut colors = [rgba_val[0], rgba_val[1], rgba_val[2], rgba_val[3]];
 
-            let randomtreshold = rng.gen_range(0..10);
+            
             for i in 0..3 {
                 let tt = ((rgba_val[i] as u16) * (k as u16 - 2u16)) / 255u16;
                 let tr = tt as u8;
-                if randomtreshold > 4 {
+                let randomtreshold = rng.gen_range(levels[tr as usize]..levels[(tr + 1) as usize]);
+                if rgba_val[i] >randomtreshold  {
                     colors[i] = levels[(tr + 1) as usize]
                 } else {
                     colors[i] = levels[(tr) as usize]
@@ -803,8 +804,9 @@ fn median_cut(filename: String, k: u8) -> bool {
     let mut c = 0;
     while cubes.len() < (k - 1) as usize {
         let mut cube = cubes[c].clone();
-        let median = cube.len() / 2;
+        
         cube.sort_by(|a, b| b[1].cmp(&a[1]));
+        let median = cube.len() / 2;
         let (mut left, right) = cube.split_at_mut(median);
         let mut median_color = right[0].clone();
         let mut lleft = left.to_vec();
@@ -891,6 +893,100 @@ fn grey(filename: String, k: u8) -> bool {
     true.into()
 }
 
+
+#[tauri::command]
+fn  ycb(filename: String, k: u8) -> bool {
+    use image::Pixel;
+    let original = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let original2 = format!("{}{}", "C:\\Users\\Sebastian\\Pictures\\", filename);
+    let mut rgba = open(original).unwrap().into_rgba8();
+    let mut rgba2 = open(original2).unwrap().into_rgba8();
+    let (width, height) = rgba.dimensions();
+    println!("{} {}", width, height);
+
+    let mut levels = Vec::new();
+    // let mut bars =Vec::new();
+    let mut rng = rand::thread_rng();
+    let co = (255 / (k - 1));
+    for l in 0..k {
+        levels.push(l * co);
+    }
+
+    println!("levels of color {:?}  ddd {:?}  k : {}", levels, co, k);
+    for x in 0..width {
+        for y in 0..height {
+            let p = *rgba.get_pixel(x, y);
+            let mut rgba_val = p.channels();
+         
+            let mut colors = [rgba_val[0], rgba_val[1], rgba_val[2], rgba_val[3]];
+
+
+            let yp=0.2999f32 * (rgba_val[0] as f32) + 0.58f32 *  (rgba_val[1] as f32) + 0.114f32 *  (rgba_val[2] as f32);
+            let cb:f32 = 128f32-0.168736f32 *  (rgba_val[0] as f32) - 0.331264 * (rgba_val[1] as f32) + 0.5f32 *(rgba_val[2] as f32);
+            let cr:f32 = 128f32+0.5f32 *  (rgba_val[0] as f32) - 0.418688f32 * (rgba_val[1] as f32) + 0.0813112* (rgba_val[2] as f32);
+           // println!("{:?}  {:?}  {}", yp, cb, cr);
+            let np = image::Rgba([(yp as u8) ,(cb as u8) , (cr as u8),255]);
+
+            rgba.put_pixel(x, y, np);
+        }
+    }
+
+
+    for x in 0..width {
+        for y in 0..height {
+            let p = *rgba.get_pixel(x, y);
+            let mut rgba_val = p.channels();
+         
+            let mut colors = [rgba_val[0], rgba_val[1], rgba_val[2], rgba_val[3]];
+
+            let randomtreshold = rng.gen_range(0..10);
+            for i in 0..3 {
+                let tt = ((rgba_val[i] as u16) * (k as u16 - 2u16)) / 255u16;
+                let tr = tt as u8;
+                if randomtreshold > 4 {
+                    colors[i] = levels[(tr + 1) as usize]
+                } else {
+                    colors[i] = levels[(tr) as usize]
+                }
+            }
+
+            let np = image::Rgba(colors);
+
+            rgba.put_pixel(x, y, np);
+        }
+    }
+
+
+
+    for x in 0..width {
+        for y in 0..height {
+            let p = *rgba.get_pixel(x, y);
+            let mut rgba_val = p.channels();
+         
+            let mut colors = [rgba_val[0], rgba_val[1], rgba_val[2], rgba_val[3]];
+
+
+            let r= (rgba_val[0] as f32) + 1.402f32 * ((rgba_val[2] as f32) - 128f32);
+            let b:f32 = (rgba_val[0] as f32) - 0.344136f32 * ((rgba_val[1] as f32) - 128f32) - 0.714136f32 *((rgba_val[2] as f32 )-128f32);
+            let g:f32 = (rgba_val[0] as f32) + 1.772f32 * ((rgba_val[1] as f32) - 128f32);
+           
+            let np = image::Rgba([(r as u8) ,(g as u8) , (b as u8),255]);
+
+            rgba.put_pixel(x, y, np);
+        }
+    }
+
+
+    let modified =
+        "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
+    let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
+    rgba.save(modified2).unwrap();
+    rgba.save(modified).unwrap();
+    println!("DONE");
+    true.into()
+}
+
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -908,7 +1004,9 @@ fn main() {
             apply_in_rust,
             thresholding,
             median_cut,
-            grey
+            grey,
+            ycb
+           
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
