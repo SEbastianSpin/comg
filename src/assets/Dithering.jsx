@@ -40,7 +40,7 @@ export default function Dithering({ filename }){
     <Button  onClick={applyDithering}>
          applyDithering
     </Button>
-    <input onChange={(e)=>setK(Number(e.target.value)+1
+    <input onChange={(e)=>setK(Number(e.target.value)
 
     )}></input>
 

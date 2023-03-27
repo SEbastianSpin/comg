@@ -709,42 +709,41 @@ fn thresholding(filename: String, k: u8) -> bool {
     let (width, height) = rgba.dimensions();
     println!("{} {}", width, height);
 
-    let mut levels = Vec::new();
-    // let mut bars =Vec::new();
+    //let mut levels:Vec<u8 = Vec::new();
     let mut rng = rand::thread_rng();
-    let co = (255 / (k - 1));  
-    for l in 0..k {
-        levels.push(l *co );
-    }
-
+    // let co = 255 / (k - 1) as u8;
+    // for l in 0..k {
+    //     levels.push(l * co);
+    // }
+    let max_level = 255u16;
+    let levels = (0..k).map(|i| max_level * i as u16 / (k - 1) as u16).collect::<Vec<_>>();
+    
+    
     println!("levels of color {:?}    k : {}", levels, k);
-    for x in 0..width {
-        for y in 0..height {
+    for y in 0..height {
+        for x in 0..width {
             let p = *rgba.get_pixel(x, y);
             let mut rgba_val = p.channels();
+         
             let mut colors = [rgba_val[0], rgba_val[1], rgba_val[2], rgba_val[3]];
 
-            
+            let randomtreshold = rng.gen_range(0..10);
             for i in 0..3 {
                 let tt = ((rgba_val[i] as u16) * (k as u16 - 2u16)) / 255u16;
                 let tr = tt as u8;
-                let randomtreshold = rng.gen_range(levels[tr as usize]..levels[(tr + 1) as usize]);
-                if rgba_val[i] >randomtreshold  {
-                    colors[i] = levels[(tr + 1) as usize]
+                if randomtreshold > 4 {
+                    colors[i] = levels[(tr + 1) as usize] as u8
                 } else {
-                    colors[i] = levels[(tr) as usize]
+                    colors[i] = levels[(tr) as usize] as u8
                 }
             }
-
-            // if x < 10 && y <10 {
-            //     println!("{:?} {:?} {:?} \n {} {} {}" ,red,green, blue ,rgba_val[0] ,rgba_val[1] ,rgba_val[2] );
-            // }
 
             let np = image::Rgba(colors);
 
             rgba.put_pixel(x, y, np);
         }
     }
+    
     let modified =
         "C:\\Users\\Sebastian\\Documents\\SebasLab\\comg\\src\\assets\\plant\\modified.png";
     let modified2 = "C:\\Users\\Sebastian\\Pictures\\modified.png";
@@ -790,22 +789,39 @@ fn median_cut(filename: String, k: u8) -> bool {
 
     println!("Minimum RGB values: ({}, {}, {})", min_r, min_g, min_b);
     println!("Maximum RGB values: ({}, {}, {})", max_r, max_g, max_b);
+
+    let range_r = max_r - min_r;
+    let range_g = max_g - min_g;
+    let range_b = max_b - min_b;
+
+
+let max_range = range_r.max(range_g).max(range_b);
+
+let max_index = if max_range == range_r {
+    0 
+} else if max_range == range_g {
+    1
+} else {
+    2
+};
+
+
     for i in 0..10 {
         print!("{:?} ", allpixels[i][1]);
     }
 
     let mut cubes = vec![allpixels.to_vec()];
 
-    // for i in 0..10{
-    //     print!("{:?} " ,cubes[i]);
-    // }
+    
+        print!(" max_index{:?} " ,max_index);
+    
     let mut i = 1;
     //for c in 0..cubes.len() {
     let mut c = 0;
     while cubes.len() < (k - 1) as usize {
         let mut cube = cubes[c].clone();
         
-        cube.sort_by(|a, b| b[1].cmp(&a[1]));
+        cube.sort_by(|a, b| b[max_index as usize].cmp(&a[max_index as usize]));
         let median = cube.len() / 2;
         let (mut left, right) = cube.split_at_mut(median);
         let mut median_color = right[0].clone();
